@@ -3,18 +3,18 @@ import map from 'lodash/map';
 import times from 'lodash/times';
 import groupBy from 'lodash/groupBy';
 
-import React, {useCallback, useEffect, useMemo, useRef} from 'react';
-import {View, ScrollView} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { View, ScrollView } from 'react-native';
 
 import constants from '../commons/constants';
-import {generateDay} from '../dateutils';
-import {getCalendarDateString} from '../services';
-import {Theme} from '../types';
+import { generateDay } from '../dateutils';
+import { getCalendarDateString } from '../services';
+import { Theme } from '../types';
 import styleConstructor from './style';
-import {populateEvents, HOUR_BLOCK_HEIGHT, UnavailableHours} from './Packer';
-import {calcTimeOffset} from './helpers/presenter';
-import TimelineHours, {TimelineHoursProps} from './TimelineHours';
-import EventBlock, {Event, PackedEvent} from './EventBlock';
+import { populateEvents, HOUR_BLOCK_HEIGHT, UnavailableHours } from './Packer';
+import { calcTimeOffset } from './helpers/presenter';
+import TimelineHours, { TimelineHoursProps } from './TimelineHours';
+import EventBlock, { Event, PackedEvent } from './EventBlock';
 import NowIndicator from './NowIndicator';
 import useTimelineOffset from './useTimelineOffset';
 
@@ -68,7 +68,7 @@ export interface TimelineProps {
   /**
    * Initial time to scroll to
    */
-  initialTime?: {hour: number; minutes: number};
+  initialTime?: { hour: number; minutes: number };
   /**
    * Whether to use 24 hours format for the timeline hours
    */
@@ -89,6 +89,8 @@ export interface TimelineProps {
    * Listen to onScroll event of the timeline component
    */
   onChangeOffset?: (offset: number) => void;
+
+  onScroll?: (event: any) => void;
   /**
    * Spacing between overlapping events
    */
@@ -135,6 +137,7 @@ const Timeline = (props: TimelineProps) => {
     showNowIndicator,
     scrollOffset,
     onChangeOffset,
+    onScroll, // 외부 onScroll prop
     overlapEventsSpacing = 0,
     rightEdgeSpacing = 0,
     unavailableHours,
@@ -158,7 +161,7 @@ const Timeline = (props: TimelineProps) => {
   const calendarHeight = useRef((end - start) * HOUR_BLOCK_HEIGHT);
   const styles = useRef(styleConstructor(theme || props.styles, calendarHeight.current));
 
-  const {scrollEvents} = useTimelineOffset({onChangeOffset, scrollOffset, scrollViewRef: scrollView});
+  const { scrollEvents } = useTimelineOffset({ onChangeOffset, scrollOffset, scrollViewRef: scrollView });
 
   const width = useMemo(() => {
     return constants.screenWidth - timelineLeftInset;
@@ -226,7 +229,7 @@ const Timeline = (props: TimelineProps) => {
     });
 
     return (
-      <View pointerEvents={'box-none'}  style={[{marginLeft: dayIndex === 0 ? timelineLeftInset : undefined}, styles.current.eventsContainer]}>
+      <View pointerEvents={'box-none'} style={[{ marginLeft: dayIndex === 0 ? timelineLeftInset : undefined }, styles.current.eventsContainer]}>
         {events}
       </View>
     );
@@ -238,9 +241,20 @@ const Timeline = (props: TimelineProps) => {
     return (
       <React.Fragment key={dayIndex}>
         {renderEvents(dayIndex)}
-        {indexOfToday !== -1 && showNowIndicator && <NowIndicator width={width / numberOfDays} left={left} styles={styles.current}/>}
+        {indexOfToday !== -1 && showNowIndicator && <NowIndicator width={width / numberOfDays} left={left} styles={styles.current} />}
       </React.Fragment>
     );
+  };
+
+  // 외부 onScroll과 내부 scrollEvents.onScroll을 합성하는 핸들러
+
+  const handleScroll = (event: any) => {
+    if (scrollEvents.onScroll) {
+      scrollEvents.onScroll(event);
+    }
+    if (onScroll) {
+      onScroll(event);
+    }
   };
 
   return (
@@ -248,9 +262,10 @@ const Timeline = (props: TimelineProps) => {
       // @ts-expect-error
       ref={scrollView}
       style={styles.current.container}
-      contentContainerStyle={[styles.current.contentStyle, {width: constants.screenWidth}]}
+      contentContainerStyle={[styles.current.contentStyle, { width: constants.screenWidth }]}
       showsVerticalScrollIndicator={false}
-      {...scrollEvents}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
       testID={testID}
     >
       <TimelineHours
@@ -273,5 +288,5 @@ const Timeline = (props: TimelineProps) => {
   );
 };
 
-export {Event as TimelineEventProps, PackedEvent as TimelinePackedEventProps};
+export { Event as TimelineEventProps, PackedEvent as TimelinePackedEventProps };
 export default React.memo(Timeline);
